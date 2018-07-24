@@ -280,9 +280,11 @@ if __name__ == '__main__':
         print("########################## {}tims training #############################".format(str(i+1)))
         tf.logging.info("########################## begain trainning #################################")
         train(True,i,args)
+        train(True,i,args)
+        train(True,i,args)
         tf.logging.info("########################## ending trainning  #################################")
         print("########################## {}tims training end #############################".format(str(i+1)))
-       
+    for i in range(4):
         print("########################## {}tims evalidting #############################".format(str(i+1)))
         tf.logging.info("########################## begain evalidting #################################")    
         evalidate(False,i,args)
