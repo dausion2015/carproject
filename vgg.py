@@ -81,7 +81,7 @@ class VGG16_GAP:
         net = self.max_pool(net, name='pool4')
         net =slim.dropout(net,0.8)
         
-        net = tf.nn.batch_normalization(net)
+       
         net = self.conv_layer(net, 3, 512, 512, 'conv5_1')
         net = slim.batch_norm(net)
         net =slim.dropout(net,0.8)
