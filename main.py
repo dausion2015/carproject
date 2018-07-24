@@ -56,60 +56,60 @@ def test(args):
     image = scipy.misc.imread(args.imgpath, mode='RGB')
     image = scipy.misc.imresize(image, (224, 224))
     image = np.expand_dims(image, 0)
-    assert image.shape == (1, 224, 224, 3)
+    # assert image.shape == (1, 224, 224, 3)
 
-    image_ph = tf.placeholder(tf.float32, shape=(1, 224, 224, 3))
+    # image_ph = tf.placeholder(tf.float32, shape=(1, 224, 224, 3))
 
-    model = VGG16_GAP(args, num_batches=None, train_mode=False)
-    model.build(image_ph)
+    # model = VGG16_GAP(args, num_batches=None, train_mode=False)
+    # model.build(image_ph)
 
-    saver = tf.train.Saver()
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    sess = tf.Session(config=config)
-    sess.run(tf.global_variables_initializer())
+    # saver = tf.train.Saver()
+    # config = tf.ConfigProto()
+    # config.gpu_options.allow_growth = True
+    # sess = tf.Session(config=config)
+    # sess.run(tf.global_variables_initializer())
 
-    if args.modelpath is not None:
-        print ('Using model: {}'.format(args.modelpath))
-        saver.restore(sess, args.modelpath)
-    else:
-        print ('Using pretrained caffemodel')
+    # if args.modelpath is not None:
+    #     print ('Using model: {}'.format(args.modelpath))
+    #     saver.restore(sess, args.modelpath)
+    # else:
+    #     print ('Using pretrained caffemodel')
 
-    feed_dict = {image_ph: image}
-    logits, CAM_conv_resize, CAM_fc = sess.run([
-        model.cam_fc, model.cam_conv_resize, model.cam_fc_value], feed_dict=feed_dict)
-    pred = np.argmax(logits)
-    acc = tf.nn.softmax(logits)
-    # pdb.set_trace()
-    acesend = np.argsort(logits)
-    acesend_list = list(acesend)
-    acesend_list.reverse()
-    desecend = acesend
-    top_5 = desecend[:5]
-    cam_map_list = []
-    for i in range(top_5):   #CAM_conv_resize [224,224,1024]
-        CAM_h_map = np.matmul(CAM_conv_resize.reshape(-1, 1024), CAM_fc.transpose()[desecend[i]].transpose())
-        CAM_h_map = np.reshape(CAM_h_map,[224,224])
-        cam_map_list.append(CAM_h_map)
-    CAM_heatmap2 = tf.concat(cam_map_list,axis=2)
-    CAM_heatmap = np.matmul(CAM_conv_resize.reshape(-1, 1024), CAM_fc.transpose()[pred])
-    CAM_heatmap = np.reshape(CAM_heatmap, [224, 224])
-    CAM_heatmap = norm_image(CAM_heatmap)
-    CAM_heatmap2 = norm_image(CAM_heatmap2)
+    # feed_dict = {image_ph: image}
+    # logits, CAM_conv_resize, CAM_fc = sess.run([
+    #     model.cam_fc, model.cam_conv_resize, model.cam_fc_value], feed_dict=feed_dict)
+    # pred = np.argmax(logits)
+    # acc = tf.nn.softmax(logits)
+    # # pdb.set_trace()
+    # acesend = np.argsort(logits)
+    # acesend_list = list(acesend)
+    # acesend_list.reverse()
+    # desecend = acesend
+    # top_5 = desecend[:5]
+    # cam_map_list = []
+    # for i in range(top_5):   #CAM_conv_resize [224,224,1024]
+    #     CAM_h_map = np.matmul(CAM_conv_resize.reshape(-1, 1024), CAM_fc.transpose()[desecend[i]].transpose())
+    #     CAM_h_map = np.reshape(CAM_h_map,[224,224])
+    #     cam_map_list.append(CAM_h_map)
+    # CAM_heatmap2 = tf.concat(cam_map_list,axis=2)
+    # CAM_heatmap = np.matmul(CAM_conv_resize.reshape(-1, 1024), CAM_fc.transpose()[pred])
+    # CAM_heatmap = np.reshape(CAM_heatmap, [224, 224])
+    # CAM_heatmap = norm_image(CAM_heatmap)
+    # CAM_heatmap2 = norm_image(CAM_heatmap2)
     
-    image = np.squeeze(image)
-    curHeatMap = image*0.2+CAM_heatmap*0.7
-    scipy.misc.imsave(os.path.join(args.out_dir, 'test_heatmap.jpg'), CAM_heatmap)
-    scipy.misc.imsave(os.path.join(args.out_dir,'bindtest_heatmap.jpg'),curHeatMap)
-    image_sparate(CAM_heatmap2,image)
+    # image = np.squeeze(image)
+    # curHeatMap = image*0.2+CAM_heatmap*0.7
+    # scipy.misc.imsave(os.path.join(args.out_dir, 'test_heatmap.jpg'), CAM_heatmap)
+    # scipy.misc.imsave(os.path.join(args.out_dir,'bindtest_heatmap.jpg'),curHeatMap)
+    # image_sparate(CAM_heatmap2,image)
 
-    with open(os.path.join(args.datast_dir2,'labels.txt'), 'r', encoding='utf8') as f:
-        h = ((i[0], i[1]) for i in [i.split(':') for i in f.read().strip().split('\n')])
-        dic = dict(h)
-    class_name = dic[pred]
-    sess.close()
+    # with open(os.path.join(args.datast_dir2,'labels.txt'), 'r', encoding='utf8') as f:
+    #     h = ((i[0], i[1]) for i in [i.split(':') for i in f.read().strip().split('\n')])
+    #     dic = dict(h)
+    # class_name = dic[pred]
+    # sess.close()
     print ('Bye')
-    return class_name,acc
+    # return class_name,acc
 
 def train(flag,num,args):
     
@@ -192,8 +192,8 @@ def train(flag,num,args):
             
             # print('argmax logits',np.argmax(logits,1),sess.run(queue_loader.labels))
             # print('correct.sum :  ',correct.sum())
-            correct_all += accuracy.sum()
-            print('correct_all :  ','step',g_s,correct_all)
+            correct_all += correct.sum()
+            
            
             
             if g_s % 40 == 0:
@@ -313,7 +313,7 @@ if __name__ == '__main__':
         tf.logging.info("########################## begain trainning #################################")
         train(True,i,args)
         train(True,i,args)
-        train(True,i,args)
+        
         tf.logging.info("########################## ending trainning  #################################")
         print("########################## {}tims training end #############################".format(str(i+1)))
     for i in range(4):
@@ -323,21 +323,21 @@ if __name__ == '__main__':
         tf.logging.info("########################## ending evalidting #################################")
         print("########################## {}tims evalidting end #############################".format(str(i+1)))
 
-    tf.logging.info("########################## begain testing #################################")
-    print("########################## begain testing #################################")
-    start = datetime.now()
-    class_name,acc = test(args)
-    print("########################## testing end #################################")
-    tf.logging.info("########################## testing end #################################")
-    print('[[[[[[[[[[[[[ cost time{}seconds'.format(start-datetime.now()))
-    curHeatMapFile = os.path.join(args.out_dir,'test_heatmap.jpg')
-    curImgFile = os.path.join(args.output_dir,'test.jpg')
-    curBBoxFile = os.path.join(args.dataset_dir2,'heatmap_6.txt') 
-    rectg = py_generate_bbox.generate_bbox(curHeatMapFile=curHeatMapFile,curImgFile =curImgFile,curBBoxFile=curBBoxFile)
-    img = cv2.imread(curImgFile)
-    # for i in range(rectg.shape[0]):
-    cv2.rectangle(img,tuple(rectg[0,0:2]),tuple(rectg[0,2:]),(255,0,0), 3)
-    # 标注文本
-    font = cv2.FONT_HERSHEY_SUPLEX
-    cv2.putText(img, class_name+'  '+str(acc*100)+'%', (rectg[0,0]+20,rectg[0,3]), font, 3, (0,0,255), 1)
-    cv2.imwrite(os.path.join(args.output_dir,'bbox_img.jpg', img))
+    # tf.logging.info("########################## begain testing #################################")
+    # print("########################## begain testing #################################")
+    # start = datetime.now()
+    # class_name,acc = test(args)
+    # print("########################## testing end #################################")
+    # tf.logging.info("########################## testing end #################################")
+    # print('[[[[[[[[[[[[[ cost time{}seconds'.format(start-datetime.now()))
+    # curHeatMapFile = os.path.join(args.out_dir,'test_heatmap.jpg')
+    # curImgFile = os.path.join(args.output_dir,'test.jpg')
+    # curBBoxFile = os.path.join(args.dataset_dir2,'heatmap_6.txt') 
+    # rectg = py_generate_bbox.generate_bbox(curHeatMapFile=curHeatMapFile,curImgFile =curImgFile,curBBoxFile=curBBoxFile)
+    # img = cv2.imread(curImgFile)
+    # # for i in range(rectg.shape[0]):
+    # cv2.rectangle(img,tuple(rectg[0,0:2]),tuple(rectg[0,2:]),(255,0,0), 3)
+    # # 标注文本
+    # font = cv2.FONT_HERSHEY_SUPLEX
+    # cv2.putText(img, class_name+'  '+str(acc*100)+'%', (rectg[0,0]+20,rectg[0,3]), font, 3, (0,0,255), 1)
+    # cv2.imwrite(os.path.join(args.output_dir,'bbox_img.jpg', img))
