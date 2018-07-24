@@ -204,7 +204,7 @@ def evalidate(flag,num,args):
         model.loss(queue_loader.labels)
 
         names_to_values, names_to_updates = slim.metrics.aggregate_metric_map({
-        "accuracy": slim.metrics.accuracy(logits, queue_loader.labels)
+        "accuracy": slim.metrics.accuracy(np.argmax(logits,1), queue_loader.labels)
         })
 
         for name,value in names_to_values.items():

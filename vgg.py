@@ -7,7 +7,7 @@ import pdb
 
 import numpy as np 
 import tensorflow as tf
-
+from tensorflow.contrib import slim
 from tensorflow.contrib.layers import xavier_initializer, l2_regularizer
 import argparse
 parser = argparse.ArgumentParser()
@@ -36,43 +36,61 @@ class VGG16_GAP:
         images = tf.concat([b , g , r], 3)
 
         net = self.conv_layer(images, 3, 3, 64, 'conv1_1')
-       
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.conv_layer(net, 3, 64, 64, 'conv1_2')
-  
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.max_pool(net, name='pool1')
-        
+        net =slim.dropout(net,0.8)
+        # net = tf.nn.batch_normalization(net)
 
         net = self.conv_layer(net, 3, 64, 128, 'conv2_1')
-        
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.conv_layer(net, 3, 128, 128, 'conv2_2')
-       
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.max_pool(net, name='pool2')
-        
+        net =slim.dropout(net,0.8)
+        # net = tf.nn.batch_normalization(net)
         
         net = self.conv_layer(net, 3, 128, 256, 'conv3_1')
-       
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.conv_layer(net, 3, 256, 256, 'conv3_2')
-
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.conv_layer(net, 3, 256, 256, 'conv3_3')
-        
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
+
         net = self.max_pool(net, name='pool3')
-        
+        net =slim.dropout(net,0.8)
+        # net = tf.nn.batch_normalization(net)
 
         net = self.conv_layer(net, 3, 256, 512, 'conv4_1')
-
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.conv_layer(net, 3, 512, 512, 'conv4_2')
-        
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.conv_layer(net, 3, 512, 512, 'conv4_3')
-       
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.max_pool(net, name='pool4')
+        net =slim.dropout(net,0.8)
         
-
+        net = tf.nn.batch_normalization(net)
         net = self.conv_layer(net, 3, 512, 512, 'conv5_1')
-        
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.conv_layer(net, 3, 512, 512, 'conv5_2')
-        
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         net = self.conv_layer(net, 3, 512, 512, 'conv5_3')
-        
+        net = slim.batch_norm(net)
+        net =slim.dropout(net,0.8)
         with tf.variable_scope('CAM'):
             self.cam_conv = self.conv_layer(net, 3, 512, 1024, 'CAM_conv')
            
