@@ -169,10 +169,10 @@ def train(flag,num,args):
             
             writer.add_summary(summary, g_s)
             
-            print('argmax logits',np.argmax(logits,1),sess.run(queue_loader.labels))
-            print('correct.sum :  ',correct.sum())
+            # print('argmax logits',np.argmax(logits,1),sess.run(queue_loader.labels))
+            # print('correct.sum :  ',correct.sum())
             correct_all += correct.sum()
-            print('correct_all :  ',correct_all)
+            print('correct_all :  ','step',g_s,correct_all)
            
             
             if g_s % 40 == 0:
