@@ -202,9 +202,9 @@ def evalidate(flag,num,args):
         model.build(queue_loader.images)
         logits = model.cam_fc
         model.loss(queue_loader.labels)
-
+        print('sdsdsdsdsdsdsdsdsdsdsdsdsdsdsdsdsdsdsd',logist)
         names_to_values, names_to_updates = slim.metrics.aggregate_metric_map({
-        "accuracy": slim.metrics.accuracy(np.argmax(logits,1), queue_loader.labels)
+        "accuracy": slim.metrics.accuracy(np.argmax(logits), queue_loader.labels)
         })
 
         for name,value in names_to_values.items():
