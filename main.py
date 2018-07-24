@@ -11,7 +11,8 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 #from utils import extract
-
+import inception_utils
+import inception_v3
 from utils import data_loader
 import shutil
 # import caffe
