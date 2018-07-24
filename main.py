@@ -11,11 +11,11 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 #from utils import extract
-from vgg import VGG16_GAP
+
 from utils import data_loader
 import shutil
 # import caffe
-import vgg_preprocessing
+# import vgg_preprocessing
 from datetime import datetime
 import cv2
 import py_generate_bbox
@@ -115,30 +115,52 @@ def train(flag,num,args):
     
     queue_loader = data_loader(flag,num,batch_size=args.bsize, num_epochs=args.ep,dataset_dir=args.dataset_dir)
   
-    model = VGG16_GAP(args, num_batches=queue_loader.num_batches, train_mode=flag)
-    # processing_images = tf.concat([vgg_preprocessing.preprocess_image(img,224,224,is_training=flag) \
-    #                 for img in tf.split(queue_loader.images,axis=0)],axis=0)
+    with slim.arg_scope(inception_utils.inception_arg_scope()):
+        logits, end_points = inception_v3.inception_v3(queue_loader.images,
+                        num_classes=764,
+                        is_training=flag,
+                        dropout_keep_prob=0.8,
+                        min_depth=16,
+                        depth_multiplier=1.0,
+                        prediction_fn=slim.softmax,
+                        spatial_squeeze=True,
+                        reuse=None,
+                        create_aux_logits=True,
+                        scope='InceptionV3',
+                        global_pool=True)
 
-    # model.build(processing_images)
- 
-    model.build(queue_loader.images)
-    model.loss(queue_loader.labels)
-    train_op = model.train()
-    tf.summary.scalar('cross entropy loss', model.xen_loss_op)
-    tf.summary.scalar('regularization loss', model.reg_loss_op)
-    tf.summary.scalar('total loss', model.loss_op)
-    merged_op = tf.summary.merge_all()
-    saver = tf.train.Saver(max_to_keep=3)
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    sess = tf.Session(config=config)
-    writer = tf.summary.FileWriter(args.trainlog, sess.graph)
-    sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
-    
-    if os.path.exists(args.modelpath) :
-        if len(os.listdir(args.modelpath)) > 0:
-            print ('Using model: {}'.format(args.modelpath))
-            saver.restore(sess, args.modelpath)
+        total_logist =  logits+end_points['AuxLogits']
+        loss_op = tf.losses.sparse_softmax_cross_entropy(queue_loader.labels, total_logist)
+        reg_loss_op = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        total_loss = tf.add(loss_op, reg_loss_op)
+        train_op = tf.train.RMSPropOptimizer(args.lr).minimize(total_loss)   
+        accuracy = tf.equal(tf.argmax(total_logist, 1), queue_loader.labels)
+        tf.summary.scalar('cross entropy loss', loss_op)
+        tf.summary.scalar('regularization loss', reg_loss_op)
+        tf.summary.scalar('total loss', total_loss)
+        merged_op = tf.summary.merge_all()
+
+        var_to_restore = slim.get_variables_to_restore(exclude=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
+                                                            'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
+        var_to_init = slim.get_variables_to_restore(include=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
+                                               'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
+      
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess = tf.Session(config=config)
+        writer = tf.summary.FileWriter(args.trainlog, sess.graph)
+        sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
+                                                  
+                                                             
+        saver = tf.train.Saver(var_list=var_to_restore,max_to_keep=3) 
+        
+
+        if len(os.listdir(args.modelpath)) == 0:  
+            saver.restore(var_to_restore,os.path.join(args.dataset_dir2,'model.ckpt'))
+        else:
+            var_to_restore = slim.get_model_variables() 
+            saver.restore(var_to_restore,tf.train.latest_checkpoint(args.modelpath))
+       
    
     print ('Start training')
     print ('batch size: %d, epoch: %d, initial learning rate: %.3f' % (args.bsize, args.ep, args.lr))
@@ -162,16 +184,15 @@ def train(flag,num,args):
             # summary = sess.run([merged_op])
             # g_step = sess.run([g_step])
             
-            logits, xloss, rloss, loss, correct, _, summary,g_s = sess.run([
-                model.cam_fc,model.xen_loss_op, model.reg_loss_op, 
-                model.loss_op,model.correct_op, train_op, merged_op, g_step])   #
+            logit, xloss, rloss, loss, correct, _, summary,g_s = sess.run([
+                logits,loss_op, reg_loss_op, total_loss,accuracy, train_op, merged_op, g_step])   #
            
             
             writer.add_summary(summary, g_s)
             
             # print('argmax logits',np.argmax(logits,1),sess.run(queue_loader.labels))
             # print('correct.sum :  ',correct.sum())
-            correct_all += correct.sum()
+            correct_all += accuracy.sum()
             print('correct_all :  ','step',g_s,correct_all)
            
             
@@ -198,11 +219,22 @@ def train(flag,num,args):
 def evalidate(flag,num,args):
     with tf.Graph().as_default():
         queue_loader = data_loader(False,num,batch_size=args.bsize,num_epochs=args.ep,dataset_dir=args.dataset_dir)
-        model = VGG16_GAP(args, num_batches=queue_loader.num_batches, train_mode=flag)
-        model.build(queue_loader.images)
-        logits = model.cam_fc
-        model.loss(queue_loader.labels)
-        print('sdsdsdsdsdsdsdsdsdsdsdsdsdsdsdsdsdsdsd',logist)
+        with slim.arg_scope(inception_utils.inception_arg_scope()):
+            logits, end_points = inception_v3.inception_v3(queue_loader.images,
+                            num_classes=764,
+                            is_training=flag,
+                            dropout_keep_prob=0.8,
+                            min_depth=16,
+                            depth_multiplier=1.0,
+                            prediction_fn=slim.softmax,
+                            spatial_squeeze=True,
+                            reuse=None,
+                            create_aux_logits=True,
+                            scope='Inception3',
+                            global_pool=True)
+        
+        
+        
         names_to_values, names_to_updates = slim.metrics.aggregate_metric_map({
         "accuracy": slim.metrics.accuracy(np.argmax(logits), queue_loader.labels)
         })

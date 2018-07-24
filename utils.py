@@ -11,7 +11,7 @@ import scipy.misc
 import numpy as np
 import tensorflow as tf
 import argparse
-import vgg_preprocessing
+import inception_preprocessing
 parser = argparse.ArgumentParser()
 args, unparsed = parser.parse_known_args()
 
@@ -56,7 +56,7 @@ class data_loader():
             # self.images, self.labels = self.readFromTFRecords(self.flag,os.path.join(args.dataset_dir, filename),
                 # batch_size, num_epochs, [224, 224, 3], num_threads)
         self.images, self.labels = self.readFromTFRecords(os.path.join(dataset_dir, filename),
-                 num_epochs, [224, 224, 3], batch_size, num_threads)
+                 num_epochs, [299, 299, 3], batch_size, num_threads)
 
     
 
@@ -81,11 +81,7 @@ class data_loader():
         
         image = tf.image.decode_jpeg(features['image/encoded'], 3)
         
-        print('****************************    vgg_preprocessing. preprocess_image')
-        
-        image = vgg_preprocessing. preprocess_image(image,img_shape[0], img_shape[1], is_training=self.flag,
-                     resize_side_min=vgg_preprocessing._RESIZE_SIDE_MIN,
-                     resize_side_max=vgg_preprocessing._RESIZE_SIDE_MAX)
+        image = inception_preprocessing.preprocess_image(image,img_shape[0], img_shape[1], is_training=self.flag,)
        
         sparse_label = features['image/class/label']       # tf.int64
             # return image, sparse_label
