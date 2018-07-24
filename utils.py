@@ -43,7 +43,7 @@ args, unparsed = parser.parse_known_args()
 
 
 class data_loader():
-    def __init__(self, flag, num, batch_size,  dataset_dir, num_epochs,num_threads=1):
+    def __init__(self, flag, num, batch_size,  dataset_dir, num_epochs,num_threads=4):
     
         self.flag = flag
         self.num = num
@@ -61,7 +61,7 @@ class data_loader():
     
 
     #  def readFromTFRecords(self,self.flag, filename, batch_size, num_epochs, img_shape, num_threads, min_after_dequeue=10000):
-    def readFromTFRecords(self, filename,  num_epochs,  img_shape, batch_size, num_threads,min_after_dequeue=10000):
+    def readFromTFRecords(self, filename,  num_epochs,  img_shape, batch_size, num_threads,min_after_dequeue=100):
 
         filename_queue = tf.train.string_input_producer([filename], num_epochs=num_epochs)
 
