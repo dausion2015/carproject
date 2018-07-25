@@ -152,6 +152,7 @@ def train(flag,num,args):
             print('###########################prev-outputexit',os.listdir('prev-output'))
             var_to_restore = slim.get_model_variables()
             ckpt_path = tf.train.latest_checkpoint('prev-output/checkpoint')
+            print('###########################ckpt_path',ckpt_path)
         else:
             var_to_restore = slim.get_variables_to_restore(exclude=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
                                                             'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
