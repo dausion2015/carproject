@@ -173,7 +173,7 @@ def train(flag,num,args):
     
         try:
             ep = 0
-            g_s = 0
+            g_s = 1
             correct_all = 0
             start = datetime.now()
             start1 = datetime.now()
@@ -202,7 +202,7 @@ def train(flag,num,args):
                 if g_s % 10 == 0:
                     end_time = datetime.now()
                     print ('epoch: %2d, globle_step: %3d,accuracy : %.2f%%, xloss: %.2f, rloss: %.2f, loss: %.3f cost time : %s sec'
-                            % (ep+1, g_s,acc*100.0,xloss, rloss, loss,end_time-stat))
+                            % (ep+1, g_s,acc*100.0,xloss, rloss, loss,end_time-start))
                     start = datetime.now()
                 if g_s % queue_loader.num_batches == 0:
                     end_time2 = datetime.now()
