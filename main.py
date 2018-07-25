@@ -135,12 +135,13 @@ def train(flag,num,args):
         reg_loss_op = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
         total_loss = tf.add(loss_op, reg_loss_op)
         train_op = tf.train.RMSPropOptimizer(args.lr).minimize(total_loss)   
-        accuracy = tf.equal(tf.argmax(total_logist, 1), queue_loader.labels)
+        correct = tf.equal(tf.argmax(total_logist, 1), queue_loader.labels)
+        accuracy = tf.reduce_mean(tf.cast(correct,tf.float32))
         tf.summary.scalar('cross entropy loss', loss_op)
         tf.summary.scalar('regularization loss', reg_loss_op)
         tf.summary.scalar('total loss', total_loss)
         merged_op = tf.summary.merge_all()
-        g_step = tf.train.get_or_create_global_step()
+        
         
         var_to_init = slim.get_variables_to_restore(include=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
                                                'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
@@ -172,7 +173,7 @@ def train(flag,num,args):
     
         try:
             ep = 0
-            
+            g_s = 0
             correct_all = 0
 
             while not coord.should_stop():  
@@ -185,30 +186,33 @@ def train(flag,num,args):
                 # summary = sess.run([merged_op])
                 # g_step = sess.run([g_step])
                 
-                logit, xloss, rloss, loss, correct, _, summary,g_s = sess.run([
-                    logits,loss_op, reg_loss_op, total_loss,accuracy, train_op, merged_op, g_step])   #
+                logit, xloss, rloss, loss, correct_list, _, summary,acc = sess.run([
+                    logits,loss_op, reg_loss_op, total_loss,correct, train_op, merged_op,accuracy])   #
             
                 
                 writer.add_summary(summary, g_s)
                 
                 # print('argmax logits',np.argmax(logits,1),sess.run(queue_loader.labels))
                 # print('correct.sum :  ',correct.sum())
-                correct_all += correct.sum()
-                
+                correct_all += correct_list.sum()
+                # step_accuracy = correct_list.sum()*100.0/args.bsize
             
                 
-                if g_s % 40 == 0:
-                    print ('epoch: %2d, globle_step: %3d, xloss: %.2f, rloss: %.2f, loss: %.3f' % (ep, g_s, xloss, rloss, loss))
+                if g_s % 10 == 0:
+                    print ('epoch: %2d, globle_step: %3d,accuracy : %.2f, xloss: %.2f, rloss: %.2f, loss: %.3f'
+                            % (ep+1, g_s,acc,xloss, rloss, loss))
                     
                 if g_s/queue_loader.num_batches > 1:
-                    print ('epoch: %2d, step: %3d, xloss: %.2f, rloss: %.2f, loss: %.3f, epoch %2d done.' %
-                            (ep+1, g_s, xloss, rloss, loss, ep+1))
-                    print ('EPOCH %2d ACCURACY: %.2f%%.' % (ep, correct_all * 100/queue_loader.num_batches))
+                    print ('epoch: %2d, step: %3d,accuracy : %.2f, xloss: %.2f, rloss: %.2f, loss: %.3f, epoch %2d done.' %
+                            (ep+1, g_s, acc,xloss, rloss, loss, ep+1))
+                    print ('EPOCH %2d ACCURACY: %.2f%%.' % (ep, correct_all * 100.0/(queue_loader.num_batches*args.bsize)))
+                    
+                    
                     saver.save(sess,os.path.join(args.modelpath,'model.ckpt'), global_step=g_s)
                     ep += 1        
                     correct_all = 0
                     continue
-
+                g_s += 1
         except tf.errors.OutOfRangeError:
             print ('\nDone training, epoch limit: %d reached.' % (ep))
         finally:
