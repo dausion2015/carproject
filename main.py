@@ -149,9 +149,9 @@ def train(flag,num,args):
             var_to_restore = slim.get_model_variables()
             ckpt_path = args.modelpath
         elif os.path.exists('prev-output'):
-            print('###########################prev-outputexit')
+            print('###########################prev-outputexit',os.listdir('prev-output'))
             var_to_restore = slim.get_model_variables()
-            ckpt_path = tf.train.latest_checkpoint('prev-output')
+            ckpt_path = tf.train.latest_checkpoint('prev-output/checkpoint')
         else:
             var_to_restore = slim.get_variables_to_restore(exclude=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
                                                             'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
@@ -271,6 +271,7 @@ def evalidate(flag,num,args):
 
 
 if __name__ == '__main__':
+    print('###########################prev-outputexit',os.listdir('prev-output'))
     print('########################## start running ###############################')
     parser = argparse.ArgumentParser()
     # parser.add_argument('--weightpath', metavar='', type=str, default=None, help='trained tensorflow weight path.')
