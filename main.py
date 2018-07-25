@@ -113,7 +113,7 @@ def test(args):
     # return class_name,acc
 
 def train(flag,num,args):
-    
+    lr = args.lr
     queue_loader = data_loader(flag,num,batch_size=args.bsize, num_epochs=args.ep,dataset_dir=args.dataset_dir)
   
     with slim.arg_scope(inception_utils.inception_arg_scope()):
@@ -134,7 +134,7 @@ def train(flag,num,args):
         loss_op = tf.losses.sparse_softmax_cross_entropy(queue_loader.labels, total_logist)
         reg_loss_op = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
         total_loss = tf.add(loss_op, reg_loss_op)
-        train_op = tf.train.RMSPropOptimizer(args.lr).minimize(total_loss)   
+        train_op = tf.train.RMSPropOptimizer(lr).minimize(total_loss)   
         correct = tf.equal(tf.argmax(total_logist, 1), queue_loader.labels)
         accuracy = tf.reduce_mean(tf.cast(correct,tf.float32))
         tf.summary.scalar('cross entropy loss', loss_op)
@@ -145,13 +145,18 @@ def train(flag,num,args):
         
         var_to_init = slim.get_variables_to_restore(include=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
                                                'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
-        if len(os.listdir(args.modelpath)) == 0:
+        if len(os.listdir(args.modelpath)) > 0:
+            var_to_restore = slim.get_model_variables()
+            ckpt_path = args.modelpath
+        elif os.path.exists('prev-output'):
+            var_to_restore = slim.get_model_variables()
+            ckpt_path = tf.train.latest_checkpoint('prev-output')
+        else:
             var_to_restore = slim.get_variables_to_restore(exclude=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
                                                             'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
             ckpt_path = os.path.join(args.dataset_dir2,'model.ckpt')
-        else:
-            var_to_restore = slim.get_model_variables()
-            ckpt_path = args.modelpath
+       
+            
         saver = tf.train.Saver(var_list=var_to_restore,max_to_keep=3)
 
  
@@ -214,6 +219,7 @@ def train(flag,num,args):
                     saver.save(sess,os.path.join(args.modelpath,'model.ckpt'), global_step=g_s)
                     ep += 1        
                     correct_all = 0  
+                    lr = lr*0.99
                 g_s += 1
         except tf.errors.OutOfRangeError:
             print ('\nDone training, epoch limit: %d reached.' % (ep))
@@ -348,3 +354,4 @@ if __name__ == '__main__':
     # font = cv2.FONT_HERSHEY_SUPLEX
     # cv2.putText(img, class_name+'  '+str(acc*100)+'%', (rectg[0,0]+20,rectg[0,3]), font, 3, (0,0,255), 1)
     # cv2.imwrite(os.path.join(args.output_dir,'bbox_img.jpg', img))
+    
