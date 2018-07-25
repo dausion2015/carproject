@@ -201,12 +201,12 @@ def train(flag,num,args):
                 
                 if g_s % 10 == 0:
                     end_time = datetime.now()
-                    print ('epoch: %2d, globle_step: %3d,accuracy : %.2f, xloss: %.2f, rloss: %.2f, loss: %.3f cost time : %.2f sec'
+                    print ('epoch: %2d, globle_step: %3d,accuracy : %.2f, xloss: %.2f, rloss: %.2f, loss: %.3f cost time : %s sec'
                             % (ep+1, g_s,acc,xloss, rloss, loss,start-end_time))
                     start = datetime.now()
                 if g_s % queue_loader.num_batches == 0:
                     end_time2 = datetime.now()
-                    print ('epoch: %2d, step: %3d,accuracy : %.2f, xloss: %.2f, rloss: %.2f, loss: %.3f, epoch %2d done. cost time : %.2f sec' %
+                    print ('epoch: %2d, step: %3d,accuracy : %.2f, xloss: %.2f, rloss: %.2f, loss: %.3f, epoch %2d done. cost time : %s sec' %
                             (ep+1, g_s, acc,xloss, rloss, loss, ep+1,start1-end_time2))
                     print ('EPOCH %2d ACCURACY: %.2f%%.' % (ep, correct_all * 100.0/(queue_loader.num_batches*args.bsize)))
                     
