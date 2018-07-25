@@ -140,7 +140,7 @@ def train(flag,num,args):
         tf.summary.scalar('regularization loss', reg_loss_op)
         tf.summary.scalar('total loss', total_loss)
         merged_op = tf.summary.merge_all()
-
+        g_step = tf.train.get_or_create_global_step()
         
         var_to_init = slim.get_variables_to_restore(include=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
                                                'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
@@ -153,7 +153,7 @@ def train(flag,num,args):
             ckpt_path = args.modelpath
         saver = tf.train.Saver(var_list=var_to_restore,max_to_keep=3)
 
-
+ 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
@@ -172,7 +172,7 @@ def train(flag,num,args):
     
         try:
             ep = 0
-            g_step = tf.train.get_or_create_global_step()
+            
             correct_all = 0
 
             while not coord.should_stop():  
