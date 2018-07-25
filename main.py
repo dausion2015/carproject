@@ -141,82 +141,82 @@ def train(flag,num,args):
         tf.summary.scalar('total loss', total_loss)
         merged_op = tf.summary.merge_all()
 
-        var_to_restore = slim.get_variables_to_restore(exclude=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
-                                                            'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
+        
         var_to_init = slim.get_variables_to_restore(include=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
                                                'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
-      
+        if len(os.listdir(args.modelpath)) == 0:
+            var_to_restore = slim.get_variables_to_restore(exclude=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
+                                                            'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
+            ckpt_path = os.path.join(args.dataset_dir2,'model.ckpt')
+        else:
+            var_to_restore = slim.get_model_variables()
+            ckpt_path = args.modelpath
+        saver = tf.train.Saver(var_list=var_to_restore,max_to_keep=3)
+
+
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         writer = tf.summary.FileWriter(args.trainlog, sess.graph)
-        sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
-                                                  
-                                                             
-        saver = tf.train.Saver(var_list=var_to_restore,max_to_keep=3) 
         
-
-        if len(os.listdir(args.modelpath)) == 0:  
-            saver.restore(var_to_restore,os.path.join(args.dataset_dir2,'model.ckpt'))
-        else:
-            var_to_restore = slim.get_model_variables() 
-            saver.restore(var_to_restore,tf.train.latest_checkpoint(args.modelpath))
+        sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
+        
        
    
-    print ('Start training')
-    print ('batch size: %d, epoch: %d, initial learning rate: %.3f' % (args.bsize, args.ep, args.lr))
-    coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+        print ('Start training')
+        print ('batch size: %d, epoch: %d, initial learning rate: %.3f' % (args.bsize, args.ep, args.lr))
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
    
-   
-    try:
-        ep = 0
-        g_step = tf.train.get_or_create_global_step()
-        correct_all = 0
+    
+        try:
+            ep = 0
+            g_step = tf.train.get_or_create_global_step()
+            correct_all = 0
 
-        while not coord.should_stop():  
-            # model.logits = sess.run([model.cam_fc])
-            # xloss = sess.run([model.xen_loss_op])
-            # rloss = sess.run([model.reg_loss_op])
-            # loss = sess.run([model.loss_op,model.correct_op])
-            # correct = sess.run([model.loss_op,model.correct_op])
-            # _ = sess.run([train_op])
-            # summary = sess.run([merged_op])
-            # g_step = sess.run([g_step])
-            
-            logit, xloss, rloss, loss, correct, _, summary,g_s = sess.run([
-                logits,loss_op, reg_loss_op, total_loss,accuracy, train_op, merged_op, g_step])   #
-           
-            
-            writer.add_summary(summary, g_s)
-            
-            # print('argmax logits',np.argmax(logits,1),sess.run(queue_loader.labels))
-            # print('correct.sum :  ',correct.sum())
-            correct_all += correct.sum()
-            
-           
-            
-            if g_s % 40 == 0:
-                print ('epoch: %2d, globle_step: %3d, xloss: %.2f, rloss: %.2f, loss: %.3f' % (ep, g_s, xloss, rloss, loss))
+            while not coord.should_stop():  
+                # model.logits = sess.run([model.cam_fc])
+                # xloss = sess.run([model.xen_loss_op])
+                # rloss = sess.run([model.reg_loss_op])
+                # loss = sess.run([model.loss_op,model.correct_op])
+                # correct = sess.run([model.loss_op,model.correct_op])
+                # _ = sess.run([train_op])
+                # summary = sess.run([merged_op])
+                # g_step = sess.run([g_step])
                 
-            if g_s/queue_loader.num_batches > 1:
-                print ('epoch: %2d, step: %3d, xloss: %.2f, rloss: %.2f, loss: %.3f, epoch %2d done.' %
-                        (ep+1, g_s, xloss, rloss, loss, ep+1))
-                print ('EPOCH %2d ACCURACY: %.2f%%.' % (ep, correct_all * 100/queue_loader.num_batches))
-                saver.save(sess,os.path.join(args.modelpath,'model.ckpt'), global_step=g_s)
-                ep += 1        
-                correct_all = 0
-                continue
+                logit, xloss, rloss, loss, correct, _, summary,g_s = sess.run([
+                    logits,loss_op, reg_loss_op, total_loss,accuracy, train_op, merged_op, g_step])   #
+            
+                
+                writer.add_summary(summary, g_s)
+                
+                # print('argmax logits',np.argmax(logits,1),sess.run(queue_loader.labels))
+                # print('correct.sum :  ',correct.sum())
+                correct_all += correct.sum()
+                
+            
+                
+                if g_s % 40 == 0:
+                    print ('epoch: %2d, globle_step: %3d, xloss: %.2f, rloss: %.2f, loss: %.3f' % (ep, g_s, xloss, rloss, loss))
+                    
+                if g_s/queue_loader.num_batches > 1:
+                    print ('epoch: %2d, step: %3d, xloss: %.2f, rloss: %.2f, loss: %.3f, epoch %2d done.' %
+                            (ep+1, g_s, xloss, rloss, loss, ep+1))
+                    print ('EPOCH %2d ACCURACY: %.2f%%.' % (ep, correct_all * 100/queue_loader.num_batches))
+                    saver.save(sess,os.path.join(args.modelpath,'model.ckpt'), global_step=g_s)
+                    ep += 1        
+                    correct_all = 0
+                    continue
 
-    except tf.errors.OutOfRangeError:
-        print ('\nDone training, epoch limit: %d reached.' % (ep))
-    finally:
-        coord.request_stop()
+        except tf.errors.OutOfRangeError:
+            print ('\nDone training, epoch limit: %d reached.' % (ep))
+        finally:
+            coord.request_stop()
 
-    coord.join(threads)
-    sess.close()
-    print ('Done')
+        coord.join(threads)
+        sess.close()
+        print ('Done')
 def evalidate(flag,num,args):
     with tf.Graph().as_default():
         queue_loader = data_loader(False,num,batch_size=args.bsize,num_epochs=args.ep,dataset_dir=args.dataset_dir)
