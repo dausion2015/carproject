@@ -113,6 +113,7 @@ def test(args):
     # return class_name,acc
 
 def train(flag,num,args):
+    r = 1
     lr = args.lr
     queue_loader = data_loader(flag,num,batch_size=args.bsize, num_epochs=args.ep,dataset_dir=args.dataset_dir)
   
@@ -132,7 +133,7 @@ def train(flag,num,args):
 
         total_logist =  logits+end_points['AuxLogits']
         loss_op = tf.losses.sparse_softmax_cross_entropy(queue_loader.labels, total_logist)
-        reg_loss_op = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        reg_loss_op =r*tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
         total_loss = tf.add(loss_op, reg_loss_op)
         train_op = tf.train.RMSPropOptimizer(lr).minimize(total_loss)   
         correct = tf.equal(tf.argmax(total_logist, 1), queue_loader.labels)
@@ -221,7 +222,9 @@ def train(flag,num,args):
                     saver.save(sess,os.path.join(args.modelpath,'model.ckpt'), global_step=g_s)
                     ep += 1        
                     correct_all = 0  
-                    lr = lr*0.99
+                    lr = lr*0.9
+                    if ep%10 == 0:
+                        r = r*1.01
                 g_s += 1
         except tf.errors.OutOfRangeError:
             print ('\nDone training, epoch limit: %d reached.' % (ep))
