@@ -131,7 +131,7 @@ def train(flag,num,args):
         global_step = tf.Variable(tf.constant(0))
         lr = tf.train.exponential_decay(args.lr,
                                             global_step=global_step,
-                                            decay_steps=300,
+                                            decay_steps=100,
                                             decay_rate=0.96,
                                             staircase=True)
         
@@ -151,8 +151,8 @@ def train(flag,num,args):
         merged_op = tf.summary.merge_all()
         
         
-        var_to_init = slim.get_variables_to_restore(include=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
-                                               'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
+        # var_to_init = slim.get_variables_to_restore(include=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
+        #                                        'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
         if len(os.listdir(args.modelpath)) > 0:
             var_to_restore = slim.get_model_variables()
             ckpt_path = args.modelpath
@@ -231,7 +231,6 @@ def train(flag,num,args):
                     correct_all = 0  
                     
                    
-                g_s += 1
         except tf.errors.OutOfRangeError:
             print ('\nDone training, epoch limit: %d reached.' % (ep))
         finally:
