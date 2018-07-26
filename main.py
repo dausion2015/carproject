@@ -140,7 +140,7 @@ def train(flag,num,args):
         loss_op = tf.losses.sparse_softmax_cross_entropy(queue_loader.labels, total_logist)
         reg_loss_op = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
         total_loss = tf.add(loss_op, reg_loss_op)
-        train_op = tf.train.AdamOptimizer(lr).minimize(totalloss,global_step=global_step)
+        train_op = tf.train.AdamOptimizer(lr).minimize(total_loss,global_step=global_step)
 
 #         train_op = tf.train.RMSPropOptimizer(lr).minimize(total_loss)   
         correct = tf.equal(tf.argmax(total_logist, 1), queue_loader.labels)
