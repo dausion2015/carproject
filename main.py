@@ -113,8 +113,6 @@ def test(args):
     # return class_name,acc
 
 def train(flag,num,args):
-    r = 1
-    lr = args.lr
     queue_loader = data_loader(flag,num,batch_size=args.bsize, num_epochs=args.ep,dataset_dir=args.dataset_dir)
   
     with slim.arg_scope(inception_utils.inception_arg_scope()):
@@ -130,12 +128,21 @@ def train(flag,num,args):
                         create_aux_logits=True,
                         scope='InceptionV3',
                         global_pool=True)
-
+        global_step = tf.Variable(tf.constant(0))
+        lr = tf.train.exponential_decay(args.lr,
+                                            global_step=global_step,
+                                            decay_steps=300,
+                                            decay_rate=0.96,
+                                            staircase=True)
+        
+            
         total_logist =  logits+end_points['AuxLogits']
         loss_op = tf.losses.sparse_softmax_cross_entropy(queue_loader.labels, total_logist)
-        reg_loss_op =r*tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        reg_loss_op = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
         total_loss = tf.add(loss_op, reg_loss_op)
-        train_op = tf.train.RMSPropOptimizer(lr).minimize(total_loss)   
+        train_op = tf.train.AdamOptimizer(lr).minimize(totalloss,global_step=global_step)
+
+#         train_op = tf.train.RMSPropOptimizer(lr).minimize(total_loss)   
         correct = tf.equal(tf.argmax(total_logist, 1), queue_loader.labels)
         accuracy = tf.reduce_mean(tf.cast(correct,tf.float32))
         tf.summary.scalar('cross entropy loss', loss_op)
@@ -181,7 +188,7 @@ def train(flag,num,args):
     
         try:
             ep = 0
-            g_s = 1
+#             g_s = 1
             correct_all = 0
             start = datetime.now()
             start1 = datetime.now()
@@ -194,10 +201,10 @@ def train(flag,num,args):
                 # _ = sess.run([train_op])
                 # summary = sess.run([merged_op])
                 # g_step = sess.run([g_step])
-                
-                logit, xloss, rloss, loss, correct_list, _, summary,acc = sess.run([
-                    logits,loss_op, reg_loss_op, total_loss,correct, train_op, merged_op,accuracy])   #
-            
+               
+                logit, xloss, rloss, loss, correct_list, _, summary,acc,g_s= sess.run([
+                    logits,loss_op, reg_loss_op, total_loss,correct, train_op, merged_op,accuracy,global_step])   #
+             
                 
                 writer.add_summary(summary, g_s)
                 
@@ -222,9 +229,8 @@ def train(flag,num,args):
                     saver.save(sess,os.path.join(args.modelpath,'model.ckpt'), global_step=g_s)
                     ep += 1        
                     correct_all = 0  
-                    lr = lr*0.9
-                    if ep%10 == 0:
-                        r = r*1.01
+                    
+                   
                 g_s += 1
         except tf.errors.OutOfRangeError:
             print ('\nDone training, epoch limit: %d reached.' % (ep))
