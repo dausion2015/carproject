@@ -138,16 +138,16 @@ def train(flag,num,args):
             
         total_logist =  logits+end_points['AuxLogits']
         loss_op = tf.losses.sparse_softmax_cross_entropy(queue_loader.labels, total_logist)
-        # reg_loss_op = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-        # total_loss = tf.add(loss_op, reg_loss_op)
+        reg_loss_op = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        total_loss = tf.add(loss_op, reg_loss_op)
         train_op = tf.train.AdamOptimizer(lr).minimize(loss_op,global_step=global_step)
 
 #         train_op = tf.train.RMSPropOptimizer(lr).minimize(total_loss)   
         correct = tf.equal(tf.argmax(total_logist, 1), queue_loader.labels)
         accuracy = tf.reduce_mean(tf.cast(correct,tf.float32))
         tf.summary.scalar('cross entropy loss', loss_op)
-        # tf.summary.scalar('regularization loss', reg_loss_op)
-        # tf.summary.scalar('total loss', total_loss)
+        tf.summary.scalar('regularization loss', reg_loss_op)
+        tf.summary.scalar('total loss', total_loss)
         merged_op = tf.summary.merge_all()
         
         
@@ -167,16 +167,16 @@ def train(flag,num,args):
             ckpt_path = os.path.join(args.dataset_dir2,'model.ckpt')
        
             
-        saver = tf.train.Saver(var_list=var_to_restore,max_to_keep=3)
+        init_func = slim.assign_from_checkpoint_fn(ckpt_path,var_to_restore) 
+        saver = tf.train.Saver(max_to_keep=3)
 
  
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         writer = tf.summary.FileWriter(args.trainlog, sess.graph)
-        
         sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
-        
+        init_func(sess)
        
    
         print ('Start training')
@@ -193,10 +193,10 @@ def train(flag,num,args):
             start = datetime.now()
             start1 = datetime.now()
             while not coord.should_stop():     
-                logit, loss, correct_list, _, summary,acc,g_s= sess.run([
-                    logits,loss_op,correct, train_op, merged_op,accuracy,global_step])
-                # logit, xloss, rloss, loss, correct_list, _, summary,acc,g_s= sess.run([
-                #     logits,loss_op, reg_loss_op, total_loss,correct, train_op, merged_op,accuracy,global_step])   #
+                # logit, loss, correct_list, _, summary,acc,g_s= sess.run([
+                #     logits,loss_op,correct, train_op, merged_op,accuracy,global_step])
+                logit, xloss, rloss, loss, correct_list, _, summary,acc,g_s= sess.run([
+                    logits,loss_op, reg_loss_op, total_loss,correct, train_op, merged_op,accuracy,global_step])   #
              
                 
                 writer.add_summary(summary, g_s)
@@ -209,13 +209,13 @@ def train(flag,num,args):
                 
                 if g_s % 10 == 0:
                     end_time = datetime.now()
-                    print ('epoch: %2d, globle_step: %3d,accuracy : %.2f%%,  loss: %.3f cost time : %s sec'
-                            % (ep+1, g_s,acc*100.0, loss,end_time-start))
+                    print ('epoch: %2d, globle_step: %3d,accuracy : %.2f%%,  xloss: %.3f,  rloss: %.3f,  loss: %.3f cost time : %s sec'
+                            % (ep+1, g_s,acc*100.0, xloss, rloss, loss,end_time-start))
                     start = datetime.now()
                 if g_s % queue_loader.num_batches == 0:
                     end_time2 = datetime.now()
-                    print ('step: %3d,accuracy : %.2f%%,loss: %.3f, epoch %2d done. cost time : %s sec' %
-                            (g_s, acc, loss, ep,end_time2-start1))
+                    print ('step: %3d,accuracy : %.2f%%,xloss: %.3f,  rloss: %.3f,loss: %.3f, epoch %2d done. cost time : %s sec' %
+                            (g_s, acc, xloss, rloss, loss, ep,end_time2-start1))
                     print ('EPOCH %2d ACCURACY: %.2f%%.' % (ep, correct_all * 100.0/(queue_loader.num_batches*args.bsize)))
                     
                     
