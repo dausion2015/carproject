@@ -158,7 +158,7 @@ def train(flag,num,args):
             ckpt_path = args.modelpath
             print('###########################ckpt_path#####################',ckpt_path)
         elif len(os.listdir('prev-output')) > 0:
-            var_to_restore = slim.get_model_variables()
+            var_to_restore = slim.get_variables_to_restore()
             ckpt_path = tf.train.latest_checkpoint('prev-output/checkpoint')
             print('###########################ckpt_path3#######################',ckpt_path)
         else:
