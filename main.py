@@ -156,15 +156,16 @@ def train(flag,num,args):
         if len(os.listdir(args.modelpath)) > 0:
             var_to_restore = slim.get_model_variables()
             ckpt_path = args.modelpath
-        elif os.path.exists('prev-output'):
-            print('###########################prev-outputexit',os.listdir('prev-output'))
+            print('###########################ckpt_path#####################',ckpt_path)
+        elif len(os.listdir('prev-output')) > 0:
             var_to_restore = slim.get_model_variables()
             ckpt_path = tf.train.latest_checkpoint('prev-output/checkpoint')
-            print('###########################ckpt_path',ckpt_path)
+            print('###########################ckpt_path3#######################',ckpt_path)
         else:
             var_to_restore = slim.get_variables_to_restore(exclude=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
                                                             'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
             ckpt_path = os.path.join(args.dataset_dir2,'model.ckpt')
+            print('#########################################ckpt_path###########################',ckpt_path)
        
             
         init_func = slim.assign_from_checkpoint_fn(ckpt_path,var_to_restore) 
