@@ -12,6 +12,7 @@ import numpy as np
 import tensorflow as tf
 import argparse
 import inception_preprocessing
+import math
 parser = argparse.ArgumentParser()
 args, unparsed = parser.parse_known_args()
 
@@ -43,27 +44,31 @@ args, unparsed = parser.parse_known_args()
 
 
 class data_loader():
-    def __init__(self, flag, num, batch_size,  dataset_dir, num_epochs,num_threads=4):
+    def __init__(self, flag, batch_size,  dataset_dir, num_epochs,num_threads=4):
     
         self.flag = flag
-        self.num = num
+        # self.num = num
+
         if self.flag:
-            filename = 'quiz_train_0000{}of00004.tfrecord'.format(str(num)) #train dataset
-            self.num_batches = 10992 / batch_size
+            filename = [os.path.join(dataset_dir,'quiz_train_0000{}of00004.tfrecord'.format(str(i))) for i in range(4)] #train dataset
+            self.num_batches = math.floor(43971 / batch_size)
         else:
-            filename = 'quiz_validation_0000{}of00004.tfrecord'.format(str(num)) #validation dataset
-            self.num_batches = 1221 / batch_size
+            filename = [os.path.join(dataset_dir,'quiz_validation_0000{}of00004.tfrecord'.format(str(i))) for i in range(4)] #validation dataset
+            self.num_batches = math.floor(4885 / batch_size)
             # self.images, self.labels = self.readFromTFRecords(self.flag,os.path.join(args.dataset_dir, filename),
                 # batch_size, num_epochs, [224, 224, 3], num_threads)
-        self.images, self.labels = self.readFromTFRecords(os.path.join(dataset_dir, filename),
-                 num_epochs, [299, 299, 3], batch_size, num_threads)
+        self.images, self.labels = self.readFromTFRecords(self.flag,filename,num_epochs, [299, 299, 3],
+                                                         batch_size, num_threads)
 
     
 
     #  def readFromTFRecords(self,self.flag, filename, batch_size, num_epochs, img_shape, num_threads, min_after_dequeue=10000):
-    def readFromTFRecords(self, filename,  num_epochs,  img_shape, batch_size, num_threads,min_after_dequeue=100):
-
-        filename_queue = tf.train.string_input_producer([filename], num_epochs=num_epochs)
+    def readFromTFRecords(self, flag, filename,  num_epochs,  img_shape, batch_size, num_threads,min_after_dequeue=100):
+        if flag:
+            num_epochs = num_epochs
+        else:
+            num_epochs = 1
+        filename_queue = tf.train.string_input_producer(filename, num_epochs=num_epochs)
 
         # def read_and_decode(filename_queue, img_shape):
         reader = tf.TFRecordReader()

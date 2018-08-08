@@ -11,18 +11,20 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 #from utils import extract
-import inception_utils
-import inception_v3
+# import inception_utils
+# import inception_v4
+
+import resnet_v2
+
 from utils import data_loader
 import shutil
 # import caffe
 # import vgg_preprocessing
 from datetime import datetime
 import cv2
-import py_generate_bbox
-from datetime import datetime
+from tensorflow.contrib import slim
+import math
 
-slim = tf.contrib.slim
 # def im2double(im):
 # 	return cv2.normalize(im.astype('float'), None, 0.0, 1.0, cv2.NORM_MINMAX)
 
@@ -112,72 +114,91 @@ def test(args):
     print ('Bye')
     # return class_name,acc
 
-def train(flag,num,args):
-    queue_loader = data_loader(flag,num,batch_size=args.bsize, num_epochs=args.ep,dataset_dir=args.dataset_dir)
-  
-    with slim.arg_scope(inception_utils.inception_arg_scope()):
-        logits, end_points = inception_v3.inception_v3(queue_loader.images,
-                        num_classes=764,
-                        is_training=flag,
-                        dropout_keep_prob=0.8,
-                        min_depth=16,
-                        depth_multiplier=1.0,
-                        prediction_fn=slim.softmax,
-                        spatial_squeeze=True,
-                        reuse=None,
-                        create_aux_logits=True,
-                        scope='InceptionV3',
-                        global_pool=True)
-        global_step = tf.Variable(tf.constant(0))
-        lr = tf.train.exponential_decay(args.lr,
-                                            global_step=global_step,
-                                            decay_steps=100,
-                                            decay_rate=0.96,
-                                            staircase=True)
-        
-            
-        total_logist =  logits+end_points['AuxLogits']
-        loss_op = tf.losses.sparse_softmax_cross_entropy(queue_loader.labels, total_logist)
-        reg_loss_op = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-        total_loss = tf.add(loss_op, reg_loss_op)
-        train_op = tf.train.AdamOptimizer(lr).minimize(loss_op,global_step=global_step)
+def train(flag,args):
+    tf.reset_default_graph()
+    
+    queue_loader = data_loader(flag,batch_size=args.bsize, num_epochs=args.ep,dataset_dir=args.dataset_dir)
 
-#         train_op = tf.train.RMSPropOptimizer(lr).minimize(total_loss)   
-        correct = tf.equal(tf.argmax(total_logist, 1), queue_loader.labels)
+    with slim.arg_scope(resnet_v2.resnet_arg_scope()):
+        logits, end_points = resnet_v2.resnet_v2_101(queue_loader.images, 764, is_training=flag)
+                     
+        g_step = tf.Variable(0,trainable=False,dtype=tf.int64,name='g_step')
+        # g_step = tf.train.create_global_step()
+        decay_steps = int(math.floor(43971 /args.bsize*2.0))
+        lr = tf.train.exponential_decay(args.lr,global_step=g_step,decay_steps=decay_steps,decay_rate=0.94,staircase=True)
+       
+        # loss_AuxLogits = tf.losses.sparse_softmax_cross_entropy( labels=queue_loader.labels, logits=end_points['AuxLogits'], weights=0.4)
+        total_loss = tf.losses.sparse_softmax_cross_entropy( labels=queue_loader.labels, logits=logits,  weights=1.0)
+        
+        # total_loss = tf.losses.get_total_loss(add_regularization_losses=False)
+
+#         train_op = tf.train.RMSPropOptimizer(lr).minimize(total_loss) 
+  
+        labels = queue_loader.labels
+        correct = tf.equal(tf.argmax(logits, 1), labels)
+      
         accuracy = tf.reduce_mean(tf.cast(correct,tf.float32))
-        tf.summary.scalar('cross entropy loss', loss_op)
-        tf.summary.scalar('regularization loss', reg_loss_op)
+     
+        # tf.summary.scalar('AuxLogits loss', loss_AuxLogits)
+        tf.summary.scalar('accuracy',accuracy)
         tf.summary.scalar('total loss', total_loss)
+        tf.summary.scalar('learnning_rate', lr)
         merged_op = tf.summary.merge_all()
+        # for var in slim.get_model_variables():
+        #     if var.op.name.startswith("Variabl"):
+        #         print(var)
         
         
-        # var_to_init = slim.get_variables_to_restore(include=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
-        #                                        'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
+        with tf.variable_scope('Adam_vars'):
+            # optimizer = tf.train.AdamOptimizer(lr).minimize(loss_op,global_step=global_step)
+            optimizer = tf.train.AdamOptimizer(lr)
+            grads_vars_tuple_list = optimizer.compute_gradients(total_loss)
+            grads,vars = zip(*grads_vars_tuple_list)
+            new_grads,_ = tf.clip_by_global_norm(grads,5)
+            new_grads_vars_tuple_list = zip(new_grads,vars)
+            train_op = optimizer.apply_gradients(new_grads_vars_tuple_list, global_step=g_step)
+            # optimizer = tf.train.AdamOptimizer(lr)
+            # grads_and_vars = optimizer.compute_gradients(loss_op)
+            # for i,(grad,var) in enumerate(grads_and_vars):
+            #     if grad is not None:
+            #         grads_and_vars[i] = (tf.clip_by_norm(grad,5),var)
+            # train_op = optimizer.apply_gradients(grads_and_vars,global_step=global_step)
+
+
         if len(os.listdir(args.modelpath)) > 0:
             var_to_restore = slim.get_model_variables()
             ckpt_path = args.modelpath
-            print('###########################ckpt_path#####################',ckpt_path)
-        elif len(os.listdir('prev-output')) > 0:
-            var_to_restore = slim.get_variables_to_restore()
-            ckpt_path = tf.train.latest_checkpoint('prev-output/checkpoint')
-            print('###########################ckpt_path3#######################',ckpt_path)
+            print('###########################ckpt_path',ckpt_path)
+      
         else:
-            var_to_restore = slim.get_variables_to_restore(exclude=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
-                                                            'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
-            ckpt_path = os.path.join(args.dataset_dir2,'model.ckpt')
-            print('#########################################ckpt_path###########################',ckpt_path)
-       
-            
+            # var_to_restore = slim.get_variables_to_restore(exclude=['InceptionV3/AuxLogits/Conv2d_1b_1x1',
+            #                                                 'InceptionV3/Logits/Conv2d_1b_1x1/Conv2d_1c_1x1'])
+            var_to_restore = slim.get_variables_to_restore(exclude=[
+                                                            'resnet_v2_101/logits','Adam_vars','g_step'])
+                                                            # 'InceptionV4/AuxLogits/Conv2d_1b_1x1/BatchNorm/beta/Adam',
+                                                            # 'InceptionV4/AuxLogits/Conv2d_1b_1x1/weights/Adam'    
+            # Aux_logit = slim.get_variables_to_restore(include=['InceptionV4/AuxLogits/Aux_logits'])
+            # Logit = slim.get_variables_to_restore(include=['InceptionV4/Logits/Logits'])   
+            # adam = slim.get_variables_to_restore(include=['Adam_vars'])                                                             
+            ckpt_path = os.path.join(args.dataset_dir2,'resnetv2.ckpt')
+            print('###########################ckpt_path',ckpt_path)
+        # Aux_logit_init = tf.variables_initializer(Aux_logit)
+        # Logit_init = tf.variables_initializer(Logit)
+        # adam_init = tf.variables_initializer(adam)
         init_func = slim.assign_from_checkpoint_fn(ckpt_path,var_to_restore) 
+      
         saver = tf.train.Saver(max_to_keep=3)
-
- 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         writer = tf.summary.FileWriter(args.trainlog, sess.graph)
         sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
+        # sess.run(Aux_logit_init)
+        # sess.run(Logit_init)
+        # sess.run(adam_init)
         init_func(sess)
+        print('###################################### restore checkpoint sucessful#######################')
+
        
    
         print ('Start training')
@@ -188,18 +209,15 @@ def train(flag,num,args):
    
     
         try:
-            ep = 0
-#             g_s = 1
+            ep = 1
             correct_all = 0
             start = datetime.now()
-            start1 = datetime.now()
             while not coord.should_stop():     
                 # logit, loss, correct_list, _, summary,acc,g_s= sess.run([
                 #     logits,loss_op,correct, train_op, merged_op,accuracy,global_step])
-                logit, xloss, rloss, loss, correct_list, _, summary,acc,g_s= sess.run([
-                    logits,loss_op, reg_loss_op, total_loss,correct, train_op, merged_op,accuracy,global_step])   #
-             
-                
+                logit, loss, correct_list, _, summary, acc, g_s, l = sess.run([
+                    logits, total_loss,correct, train_op, merged_op, accuracy, g_step, lr])   
+                 
                 writer.add_summary(summary, g_s)
                 
                 # print('argmax logits',np.argmax(logits,1),sess.run(queue_loader.labels))
@@ -210,14 +228,11 @@ def train(flag,num,args):
                 
                 if g_s % 10 == 0:
                     end_time = datetime.now()
-                    print ('epoch: %2d, globle_step: %3d,accuracy : %.2f%%,  xloss: %.3f,  rloss: %.3f,  loss: %.3f cost time : %s sec'
-                            % (ep+1, g_s,acc*100.0, xloss, rloss, loss,end_time-start))
+                    print ('epoch: %2d, globle_step: %3d,accuracy : %.2f%%,loss: %.3f, cost time : %s sec'
+                            % (ep, g_s,acc*100.0, loss,end_time-start))
                     start = datetime.now()
-                if g_s % queue_loader.num_batches == 0:
-                    end_time2 = datetime.now()
-                    print ('step: %3d,accuracy : %.2f%%,xloss: %.3f,  rloss: %.3f,loss: %.3f, epoch %2d done. cost time : %s sec' %
-                            (g_s, acc, xloss, rloss, loss, ep,end_time2-start1))
-                    print ('EPOCH %2d ACCURACY: %.2f%%.' % (ep, correct_all * 100.0/(queue_loader.num_batches*args.bsize)))
+                if g_s != 0 and g_s % queue_loader.num_batches == 0:
+                    print ('EPOCH %2d is end, ACCURACY: %.2f%%.' % (ep, correct_all * 100.0/(queue_loader.num_batches*args.bsize)))
                     
                     
                     saver.save(sess,os.path.join(args.modelpath,'model.ckpt'), global_step=g_s)
@@ -233,27 +248,17 @@ def train(flag,num,args):
         coord.join(threads)
         sess.close()
         print ('Done')
-def evalidate(flag,num,args):
+def evalidate(flag,args):
     with tf.Graph().as_default():
-        queue_loader = data_loader(False,num,batch_size=args.bsize,num_epochs=args.ep,dataset_dir=args.dataset_dir)
-        with slim.arg_scope(inception_utils.inception_arg_scope()):
-            logits, end_points = inception_v3.inception_v3(queue_loader.images,
-                            num_classes=764,
-                            is_training=flag,
-                            dropout_keep_prob=0.8,
-                            min_depth=16,
-                            depth_multiplier=1.0,
-                            prediction_fn=slim.softmax,
-                            spatial_squeeze=True,
-                            reuse=None,
-                            create_aux_logits=True,
-                            scope='Inception3',
-                            global_pool=True)
+        queue_loader = data_loader(False,batch_size=args.bsize,num_epochs=args.ep,dataset_dir=args.dataset_dir)
+        with slim.arg_scope(resnet_v2.resnet_arg_scope()):
+            logits, end_points = resnet_v2.resnet_v2_101(queue_loader.images,num_classes=764,is_training=flag) 
+                           
         
         
         
         names_to_values, names_to_updates = slim.metrics.aggregate_metric_map({
-        "accuracy": slim.metrics.accuracy(np.argmax(logits), queue_loader.labels)
+        "accuracy": slim.metrics.accuracy(np.argmax(logits,1), queue_loader.labels)
         })
 
         for name,value in names_to_values.items():
@@ -264,7 +269,7 @@ def evalidate(flag,num,args):
                                             master='',
                                             checkpoint_path=args.modelpath,
                                             logdir=args.evallog,
-                                            um_evals= np.ceil(queue_loader.num_batches/args.bsize),
+                                            num_evals= queue_loader.num_batches,
                                             eval_op=list(names_to_updates.values()),
                                             variables_to_restore=slim.get_variables_to_restore())
     # config = tf.ConfigProto()
@@ -283,8 +288,8 @@ if __name__ == '__main__':
     # parser.add_argument('--train', action='store_true', help='set this to train.')
     # parser.add_argument('--test', action='store_true', help='set this to test.')
     parser.add_argument('--lr', metavar='', type=float, default=1e-4, help='learning rate.')
-    parser.add_argument('--ep', metavar='', type=int, default=5, help='number of epochs.')
-    parser.add_argument('--bsize', metavar='', type=int, default=32, help='batch size.')
+    parser.add_argument('--ep', metavar='', type=int, default=20, help='number of epochs.')
+    parser.add_argument('--bsize', metavar='', type=int, default=16, help='batch size.')
     parser.add_argument('--modelpath', metavar='', type=str, default='output/checkpoint', help='trained tensorflow model path.')
     parser.add_argument('--imgpath', type=str, default=os.path.dirname(__file__)+'test.jpg', help='Test image path.')
     parser.add_argument('--output_dir', type=str, default='/output', help=None)
@@ -296,22 +301,30 @@ if __name__ == '__main__':
     w_path = os.path.dirname(os.path.abspath(__file__))
     print(w_path,'current work space!!!!!!')
     #os.makedirs(os.path.join(w_path,'output/pretrain'))
-    os.makedirs(args.pretrain)
     if os.path.exists(args.pretrain):
         print('##########################################################/output/pretrain has been faound')
+    else:
+        os.makedirs(args.pretrain)
     #os.makedirs(os.path.join(w_path,'output/checkpoint'))
-    os.makedirs(args.modelpath)
+    
     if os.path.exists(args.modelpath):
         print('##########################################################output/checkpoint has been faound')
+    else:
+        os.makedirs(args.modelpath)
     #os.makedirs(os.path.join(w_path,'output/checkpoint'))
    # os.makedirs(os.path.join(w_path,'output/evallog'))
-    os.makedirs(args.evallog)
+    
     if os.path.exists(args.evallog):
         print('##########################################################o/output/evallog has been faound')
+    else:
+        os.makedirs(args.evallog)
     #os.makedirs(os.path.join(w_path,'output/trainlog'))
-    os.makedirs(args.trainlog)
+    
     if os.path.exists(args.evallog):
         print('##########################################################/output/trainlog has been faound')
+    else:
+        os.makedirs(args.trainlog)
+    
     shutil.copy(os.path.join(w_path,'test.jpg'),os.path.join(args.output_dir,'test.jpg'))
     # shutil.copy(os.path.join(w_path,'deploy_vgg16CAM.prototxt'),os.path.join(args.pretrain,'deploy_vgg16CAM.prototxt'))
     # shutil.copy(os.path.join(w_path,'vgg16CAM_train_iter_90000.caffemodel'),os.path.join(args.pretrain,'vgg16CAM_train_iter_90000.caffemodel'))
@@ -324,22 +337,18 @@ if __name__ == '__main__':
 
 
     if len(unparsed) != 0: raise SystemExit('Unknown argument: {}'.format(unparsed))
-    for i in range(4):  
-        # if args.train:
-            # for i in range(num):
-        print("########################## {}tims training #############################".format(str(i+1)))
-        tf.logging.info("########################## begain trainning #################################")
-        train(True,i,args)
-        train(True,i,args)
-        
-        tf.logging.info("########################## ending trainning  #################################")
-        print("########################## {}tims training end #############################".format(str(i+1)))
-    for i in range(4):
-        print("########################## {}tims evalidting #############################".format(str(i+1)))
-        tf.logging.info("########################## begain evalidting #################################")    
-        evalidate(False,i,args)
-        tf.logging.info("########################## ending evalidting #################################")
-        print("########################## {}tims evalidting end #############################".format(str(i+1)))
+    
+    print("########################## training #############################")
+    tf.logging.info("########################## begain trainning #################################")
+    train(True,args)
+    tf.logging.info("########################## ending trainning  #################################")
+    
+    
+    
+    # tf.logging.info("########################## begain evalidting #################################")    
+    # evalidate(False,args)
+    # tf.logging.info("########################## ending evalidting #################################")
+   
 
     # tf.logging.info("########################## begain testing #################################")
     # print("########################## begain testing #################################")
