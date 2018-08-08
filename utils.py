@@ -57,7 +57,7 @@ class data_loader():
             self.num_batches = math.floor(4885 / batch_size)
             # self.images, self.labels = self.readFromTFRecords(self.flag,os.path.join(args.dataset_dir, filename),
                 # batch_size, num_epochs, [224, 224, 3], num_threads)
-        self.images, self.labels = self.readFromTFRecords(self.flag,filename,num_epochs, [299, 299, 3],
+        self.images, self.labels = self.readFromTFRecords(self.flag,filename,num_epochs, [224, 224, 3],
                                                          batch_size, num_threads)
 
     
