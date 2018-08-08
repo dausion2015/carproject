@@ -50,10 +50,10 @@ class data_loader():
         # self.num = num
 
         if self.flag:
-            filename = [os.path.join(dataset_dir,'pj_vehicle_train_0000{}of00004.tfrecord'.format(str(i))) for i in range(4)] #train dataset
+            filename = [os.path.join(dataset_dir,'pj_vehicle_train_0000{}-of-00004.tfrecord'.format(str(i))) for i in range(4)] #train dataset
             self.num_batches = math.floor(43971 / batch_size)
         else:
-            filename = [os.path.join(dataset_dir,'pj_vehicle_validation_0000{}of00004.tfrecord'.format(str(i))) for i in range(4)] #validation dataset
+            filename = [os.path.join(dataset_dir,'pj_vehicle_validation_0000{}-of-00004.tfrecord'.format(str(i))) for i in range(4)] #validation dataset
             self.num_batches = math.floor(4885 / batch_size)
             # self.images, self.labels = self.readFromTFRecords(self.flag,os.path.join(args.dataset_dir, filename),
                 # batch_size, num_epochs, [224, 224, 3], num_threads)
