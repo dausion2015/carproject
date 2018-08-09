@@ -167,7 +167,7 @@ def train(flag,args):
 
         if len(os.listdir(args.modelpath)) > 0:
             var_to_restore = slim.get_model_variables()
-            ckpt_path = args.modelpath
+            ckpt_path = tf.train.latest_checkpoint(args.modelpath)
             print('###########################ckpt_path',ckpt_path)
       
         else:
@@ -180,7 +180,7 @@ def train(flag,args):
             # Aux_logit = slim.get_variables_to_restore(include=['InceptionV4/AuxLogits/Aux_logits'])
             # Logit = slim.get_variables_to_restore(include=['InceptionV4/Logits/Logits'])   
             # adam = slim.get_variables_to_restore(include=['Adam_vars'])                                                             
-            ckpt_path = os.path.join(args.dataset_dir2,'resnetv2.ckpt')
+            ckpt_path = tf.train.latest_checkpoint(args.dataset_dir2)
             print('###########################ckpt_path',ckpt_path)
         # Aux_logit_init = tf.variables_initializer(Aux_logit)
         # Logit_init = tf.variables_initializer(Logit)
