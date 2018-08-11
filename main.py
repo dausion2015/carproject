@@ -187,7 +187,7 @@ def train(flag,args):
         # adam_init = tf.variables_initializer(adam)
         init_func = slim.assign_from_checkpoint_fn(ckpt_path,var_to_restore) 
       
-        saver = tf.train.Saver(max_to_keep=3)
+        saver = tf.train.Saver(max_to_keep=1)
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
